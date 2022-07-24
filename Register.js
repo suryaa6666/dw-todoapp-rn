@@ -52,7 +52,6 @@ export default function Register({ navigation }) {
           placeholder={"Name..."}
           fontSize={15}
           color={"#000"}
-          name={"name"}
           onChangeText={(txt) => handleChange("firstName", txt)}
         ></Input>
       </Box>
@@ -67,7 +66,6 @@ export default function Register({ navigation }) {
           placeholder={"Email..."}
           fontSize={15}
           color={"#000"}
-          name={"email"}
           onChangeText={(txt) => handleChange("email", txt)}
         ></Input>
       </Box>
@@ -83,7 +81,6 @@ export default function Register({ navigation }) {
           type={"password"}
           fontSize={15}
           color={"#000"}
-          name={"password"}
           onChangeText={(txt) => handleChange("password", txt)}
         ></Input>
       </Box>

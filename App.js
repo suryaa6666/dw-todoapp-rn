@@ -1,5 +1,6 @@
-import 'react-native-gesture-handler';
+import "react-native-gesture-handler";
 import { extendTheme, NativeBaseProvider } from "native-base";
+import { ModalPortal } from "react-native-modals";
 import React from "react";
 import Container from "./Container";
 
@@ -12,8 +13,9 @@ export const theme = extendTheme({ config });
 
 export default function App() {
   return (
-      <NativeBaseProvider theme={theme}>
-          <Container />
-      </NativeBaseProvider>
+    <NativeBaseProvider theme={theme}>
+      <Container />
+      <ModalPortal />
+    </NativeBaseProvider>
   );
 }

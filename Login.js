@@ -1,10 +1,43 @@
-import * as React from "react";
+import React, { useState } from "react";
 
 import { Box, Center, Input, Text } from "native-base";
 
 import { TouchableOpacity } from "react-native";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { api } from "./src/helpers/api";
+
 export default function Login({ navigation }) {
+  const [loginForm, setLoginForm] = useState({
+    email: "",
+    password: "",
+  });
+
+  const handleChange = (name, text) => {
+    setLoginForm({
+      ...loginForm,
+      [name]: text,
+    });
+    console.log(loginForm);
+  };
+
+  const handleSubmit = async () => {
+    // console.log(await AsyncStorage.getItem("@auth"));
+    try {
+      const login = await api.post("/auth/login", loginForm);
+      console.log("login berhasil...", login.data);
+      const tokenStringified = JSON.stringify(login.data.token);
+      const emailStringified = JSON.stringify(login.data.user.email);
+      await AsyncStorage.setItem("@auth", tokenStringified);
+      await AsyncStorage.setItem("@email", emailStringified);
+      console.log("email stringified", emailStringified);
+      navigation.navigate("Home");
+    } catch (error) {
+      console.log("error login...", error);
+    }
+  };
+
   return (
     <Center flex={1}>
       <Box display={"flex"} justifyContent={"flex-start"} w={"80%"}>
@@ -23,6 +56,7 @@ export default function Login({ navigation }) {
           placeholder={"Email..."}
           fontSize={15}
           color={"#000"}
+          onChangeText={(txt) => handleChange("email", txt)}
         ></Input>
       </Box>
       <Box>
@@ -37,6 +71,7 @@ export default function Login({ navigation }) {
           type={"password"}
           fontSize={15}
           color={"#000"}
+          onChangeText={(txt) => handleChange("password", txt)}
         ></Input>
       </Box>
       <Box display={"flex"} justifyContent={"center"} w={"80%"}>
@@ -51,6 +86,7 @@ export default function Login({ navigation }) {
             borderRadius: 10,
             marginVertical: 10,
           }}
+          onPress={() => handleSubmit()}
         >
           <Text fontSize={30}>Login</Text>
         </TouchableOpacity>
