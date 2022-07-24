@@ -26,6 +26,9 @@ export default function Login({ navigation }) {
     // console.log(await AsyncStorage.getItem("@auth"));
     try {
       const login = await api.post("/auth/login", loginForm);
+      if (login.status >= 400) {
+        return console.log("login gagal...", login.data.message);
+      }
       console.log("login berhasil...", login.data);
       const tokenStringified = JSON.stringify(login.data.token);
       const emailStringified = JSON.stringify(login.data.user.email);

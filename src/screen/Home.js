@@ -1,19 +1,19 @@
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Box,
   Center,
-  Column,
   Input,
-  Row,
+  Pressable,
   Text,
   useTheme,
-  Pressable,
+  Checkbox,
+  View,
 } from "native-base";
-import React, { useState, useEffect } from "react";
-import { TouchableOpacity, ScrollView } from "react-native";
-import { api } from "../helpers/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useState } from "react";
+import { ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Modal, ModalContent } from "react-native-modals";
-import { Ionicons } from "@expo/vector-icons";
+import { api } from "../helpers/api";
 
 function Home({ navigation }) {
   const theme = useTheme();
@@ -23,26 +23,29 @@ function Home({ navigation }) {
   const [selectedNotesUpdateId, setSelectedNotesUpdateId] = useState();
   const [selectedNotesDeleteId, setSelectedNotesDeleteId] = useState();
   const [showModal, setShowModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const getNotesData = async () => {
     try {
+      setIsProcessing(true);
       let token = await AsyncStorage.getItem("@auth");
       token = JSON.parse(token);
-      let email =await AsyncStorage.getItem("@email");
+      let email = await AsyncStorage.getItem("@email");
       email = JSON.parse(email);
       let noteData = await api.get("/todo", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      if (noteData.status == 401) {
+      if (noteData.status >= 400) {
         return console.log(noteData.data.message);
       }
       noteData = noteData.data.filter((item) => {
-        return item.email == email
-      })
+        return item.email == email;
+      });
       setNotesData(noteData);
       console.log("berhasil menampilkan data...!", noteData);
+      setIsProcessing(false);
     } catch (error) {
       console.log("error, cannot fetch data...", error);
     }
@@ -58,6 +61,7 @@ function Home({ navigation }) {
 
   const handleSubmitEdit = async () => {
     try {
+      setIsProcessing(true);
       let token = await AsyncStorage.getItem("@auth");
       token = JSON.parse(token);
       const editNotes = await api.patch(
@@ -69,7 +73,7 @@ function Home({ navigation }) {
           },
         }
       );
-      if (editNotes.status == 401) {
+      if (editNotes.status >= 400) {
         return console.log(editNotes.data.message);
       }
       setNotes("");
@@ -83,6 +87,7 @@ function Home({ navigation }) {
       setSelectedNotesUpdateId(null);
       console.log("tugas berhasil di edit...!", editNotes.data);
       setNotesData(filterUpdatedNotes);
+      setIsProcessing(false);
     } catch (error) {
       console.log("add notes failed...", error);
     }
@@ -90,6 +95,7 @@ function Home({ navigation }) {
 
   const handleSubmitDelete = async () => {
     try {
+      setIsProcessing(true);
       let token = await AsyncStorage.getItem("@auth");
       token = JSON.parse(token);
       const deleteNotes = await api.delete(`/todo/${selectedNotesDeleteId}`, {
@@ -107,6 +113,7 @@ function Home({ navigation }) {
       setSelectedNotesDeleteId(null);
       console.log("tugas berhasil di dihapus...!", deleteNotes.data);
       setNotesData(filterDeletedNotes);
+      setIsProcessing(false);
     } catch (error) {
       console.log("add notes failed...", error);
     }
@@ -116,14 +123,15 @@ function Home({ navigation }) {
     if (selectedNotesUpdateId) return handleSubmitEdit();
 
     try {
+      setIsProcessing(true);
       let token = await AsyncStorage.getItem("@auth");
       token = JSON.parse(token);
-      let email =await AsyncStorage.getItem("@email");
+      let email = await AsyncStorage.getItem("@email");
       email = JSON.parse(email);
       console.log(token);
       const postNotes = await api.post(
         "/todo",
-        { name: Date.now().toString(), notes, email},
+        { name: Date.now().toString(), notes, email },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -135,6 +143,7 @@ function Home({ navigation }) {
       }
       setNotesData([...notesData, postNotes.data]);
       console.log("tugas berhasil ditambahkan...!", postNotes.data);
+      setIsProcessing(false);
     } catch (error) {
       console.log("add notes failed...", error);
     }
@@ -152,10 +161,58 @@ function Home({ navigation }) {
     setShowModal(true);
   };
 
+  const handleChangeTodoCheck = async (isDone, id) => {
+    console.log("todo check", isDone, id);
+    try {
+      setIsProcessing(true);
+      let token = await AsyncStorage.getItem("@auth");
+      token = JSON.parse(token);
+      let email = await AsyncStorage.getItem("@email");
+      email = JSON.parse(email);
+      let isDoneToNumber = isDone ? 1 : 0;
+      const editTodoCheck = await api.patch(
+        `/todo/${id}`,
+        { isDone: isDoneToNumber },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (editTodoCheck.status >= 400) {
+        return console.log(editTodoCheck.data.message);
+      }
+      let noteData = await api.get("/todo", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (noteData.status >= 400) {
+        return console.log(noteData.data.message);
+      }
+      noteData = noteData.data.filter((item) => {
+        return item.email == email;
+      });
+      const updatedTodo = noteData.map((item) => {
+        if (item._id == editTodoCheck.data._id) {
+          item.isDone = isDoneToNumber;
+        }
+        return item;
+      });
+      setNotesData(updatedTodo);
+      console.log("updated todo", updatedTodo);
+      console.log("check : ", editTodoCheck.data);
+      console.log("berhasil check", isDone);
+      setIsProcessing(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   const TODO = (props) => {
     return (
       <Box w={"100%"} display={"flex"} flexDirection={"row"}>
-        <Input
+        <Box
           h={50}
           backgroundColor={"#fff"}
           display={"flex"}
@@ -163,12 +220,24 @@ function Home({ navigation }) {
           borderBottomColor={"#000"}
           borderBottomWidth={2}
           paddingHorizontal={10}
-          value={props.todo}
-          color={"#000"}
-          fontSize={15}
           flex={1}
-          isReadOnly={true}
-        />
+        >
+          <Checkbox
+            isChecked={props.isDone ? true : false}
+            colorScheme="green"
+            onChange={(e) => handleChangeTodoCheck(e, props.id)}
+          >
+            <Text
+              color={"#000"}
+              fontSize={15}
+              style={{
+                marginLeft: 5,
+              }}
+            >
+              {props.todo}
+            </Text>
+          </Checkbox>
+        </Box>
         <Pressable
           w={30}
           h={30}
@@ -197,87 +266,123 @@ function Home({ navigation }) {
     );
   };
 
+  const Processing = (props) => {
+    if (props.process) {
+      return (
+        <View
+          w={"100%"}
+          h={"100%"}
+          backgroundColor={"#000"}
+          opacity={"0.2"}
+          position={"absolute"}
+        >
+          <Center marginTop={20}>
+            <Box position={"absolute"}>
+              <ActivityIndicator size={100} color="#0000ff" />
+            </Box>
+          </Center>
+        </View>
+      );
+    }
+    return <View></View>;
+  };
+
   return (
-    <ScrollView>
-      <Center marginVertical={20}>
-        <Box display={"flex"} justifyContent={"center"}>
-          <Input
-            w={"80%"}
-            backgroundColor={"#FFF"}
-            placeholder={
-              selectedNotesUpdateId
-                ? "nama tugas baru..."
-                : "tambahkan tugas..."
-            }
-            color={"#000"}
-            fontSize={15}
-            onChangeText={handleChange}
-            value={notes}
-          />
-          <TouchableOpacity
-            style={{
-              backgroundColor: selectedNotesUpdateId
-                ? theme.colors.warning["500"]
-                : theme.colors.primary["500"],
-              height: 40,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              borderRadius: 10,
-              marginTop: 10,
-            }}
-            onPress={() => handleSubmit()}
-          >
-            <Text fontSize={20}>
-              {selectedNotesUpdateId ? "Edit" : "Tambahkan"}
-            </Text>
-          </TouchableOpacity>
-        </Box>
-        <Box w={"100%"} marginVertical={20}>
-          {notesData?.map((item, index) => {
-            return <TODO todo={item.notes} id={item._id} key={index} />;
-          })}
-        </Box>
-      </Center>
-      <Modal visible={showModal}>
-        <ModalContent>
-          <Text color={"#000"} fontSize={20}>
-            Apakah anda ingin menghapus todo ini?
-          </Text>
-          <Box w={"100%"} display={"flex"} flexDirection={"row"} marginTop={10}>
+    <View w={"100%"} h={"100%"}>
+      <ScrollView>
+        <Center marginVertical={20}>
+          <Box display={"flex"} justifyContent={"center"}>
+            <Input
+              w={"80%"}
+              backgroundColor={"#FFF"}
+              placeholder={
+                selectedNotesUpdateId
+                  ? "nama tugas baru..."
+                  : "tambahkan tugas..."
+              }
+              color={"#000"}
+              fontSize={15}
+              onChangeText={handleChange}
+              value={notes}
+            />
             <TouchableOpacity
               style={{
-                backgroundColor: theme.colors.success["500"],
-                paddingVertical: 10,
+                backgroundColor: selectedNotesUpdateId
+                  ? theme.colors.warning["500"]
+                  : theme.colors.primary["500"],
+                height: 40,
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                flex: 1,
+                borderRadius: 10,
+                marginTop: 10,
               }}
-              onPress={handleSubmitDelete}
+              onPress={() => handleSubmit()}
             >
-              <Text fontSize={20}>Ya</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                backgroundColor: theme.colors.danger["500"],
-                paddingVertical: 10,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                flex: 1,
-              }}
-              onPress={() => {
-                setShowModal(false);
-                setSelectedNotesDeleteId();
-              }}
-            >
-              <Text fontSize={20}>Tidak</Text>
+              <Text fontSize={20}>
+                {selectedNotesUpdateId ? "Edit" : "Tambahkan"}
+              </Text>
             </TouchableOpacity>
           </Box>
-        </ModalContent>
-      </Modal>
-    </ScrollView>
+          <Box w={"100%"} marginVertical={20}>
+            {notesData?.map((item, index) => {
+              return (
+                <TODO
+                  todo={item.notes}
+                  id={item._id}
+                  isDone={item.isDone}
+                  key={index}
+                />
+              );
+            })}
+          </Box>
+        </Center>
+        <Modal visible={showModal}>
+          <ModalContent>
+            <Text color={"#000"} fontSize={20}>
+              Apakah anda ingin menghapus todo ini?
+            </Text>
+            <Box
+              w={"100%"}
+              display={"flex"}
+              flexDirection={"row"}
+              marginTop={10}
+            >
+              <TouchableOpacity
+                style={{
+                  backgroundColor: theme.colors.success["500"],
+                  paddingVertical: 10,
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  flex: 1,
+                }}
+                onPress={handleSubmitDelete}
+              >
+                <Text fontSize={20}>Ya</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: theme.colors.danger["500"],
+                  paddingVertical: 10,
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  flex: 1,
+                }}
+                onPress={() => {
+                  setShowModal(false);
+                  setSelectedNotesDeleteId();
+                }}
+              >
+                <Text fontSize={20}>Tidak</Text>
+              </TouchableOpacity>
+            </Box>
+          </ModalContent>
+        </Modal>
+      </ScrollView>
+      <Processing process={isProcessing} />
+    </View>
   );
 }
 

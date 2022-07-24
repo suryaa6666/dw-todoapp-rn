@@ -23,12 +23,15 @@ export default function Register({ navigation }) {
 
   const handleSubmit = async () => {
     try {
-      await api.post(
+      const register = await api.post(
         "/auth/register",
         registerForm
       );
-      navigation.navigate("Login");
+      if (register.status >= 400) {
+        return console.log("register gagal...", register.data.message);
+      }
       console.log("register berhasil...");
+      navigation.navigate("Login");
     } catch (error) {
       console.log("error registering...", error);
     }
